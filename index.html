@@ -72,8 +72,7 @@
 
         /* --- Animaciones de los Robots --- */
         
-        /* Efecto de parpadeo suave para los ojos */
-        .robot-talking img, .group img {
+        .robot-talking img, .group img, .robot-container img {
             animation: robotBlink 4s infinite;
         }
 
@@ -82,7 +81,6 @@
             50% { clip-path: inset(25% 0 25% 0); } 
         }
 
-        /* Movimiento de boca rítmico solo cuando hablan */
         .is-talking img {
             animation: mouthMove 0.25s infinite alternate ease-in-out, robotBlink 4s infinite;
         }
@@ -95,22 +93,35 @@
         footer {
             margin-top: auto;
         }
+
+        /* Posición por defecto (flotante) */
+        .robot-default-pos {
+            position: fixed;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 60;
+        }
+
+        /* Posición específica para Mission 2 (bajo el progreso) */
+        .robot-spelling-pos {
+            position: relative !important;
+            bottom: auto !important;
+            left: auto !important;
+            transform: none !important;
+            margin: 20px auto 0 auto;
+            z-index: 10;
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
 
-    <!-- HUD -->
+    <!-- HUD (Gemas y Mapa) -->
     <div class="fixed top-0 left-0 right-0 p-4 z-50 flex justify-between items-start pointer-events-none">
         <div class="flex flex-col gap-2 pointer-events-auto">
             <div class="glass px-6 py-2 flex items-center gap-3 shadow-xl">
                 <span class="text-3xl">💎</span>
                 <span id="stars-count" class="text-2xl font-bold-game text-indigo-600">0</span>
-            </div>
-            <div id="mission-toast" class="animate__animated animate__fadeInLeft bg-white/80 p-3 rounded-2xl border-2 border-indigo-200 flex items-center gap-3">
-                <div id="leo-avatar-container" class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center overflow-hidden">
-                    <img id="hud-avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=Leo" class="w-full h-full transition-transform duration-200" alt="Avatar">
-                </div>
-                <p class="text-xs font-bold text-indigo-800 uppercase" id="leo-talk">Hello! Let's play.</p>
             </div>
         </div>
 
@@ -118,11 +129,15 @@
             <button onclick="showSection('map')" class="glass p-4 btn-bounce bg-white">
                 <span class="text-2xl">🏠</span>
             </button>
-            <div class="glass p-2 flex flex-col gap-2" id="inventory">
-                <div class="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center opacity-30 grayscale transition-all" id="badge-1">🏆</div>
-                <div class="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center opacity-30 grayscale transition-all" id="badge-2">🎒</div>
-                <div class="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center opacity-30 grayscale transition-all" id="badge-3">👑</div>
-            </div>
+            <!-- Menú de inventario eliminado por solicitud -->
+        </div>
+    </div>
+
+    <!-- EL ROBOT (Contenedor principal) -->
+    <div id="mission-toast" class="robot-default-pos animate__animated animate__fadeInUp flex flex-col items-center gap-2 pointer-events-none">
+        <p class="bg-white/90 px-4 py-2 rounded-2xl border-2 border-indigo-200 text-xs font-bold text-indigo-800 uppercase shadow-lg text-center max-w-[200px]" id="leo-talk">Hello! Let's play.</p>
+        <div id="leo-avatar-container" class="w-20 h-20 bg-white/90 rounded-full border-4 border-white flex items-center justify-center overflow-hidden shadow-2xl robot-container pointer-events-auto">
+            <img id="hud-avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=Leo" class="w-full h-full transition-transform duration-200" alt="Avatar">
         </div>
     </div>
 
@@ -177,7 +192,7 @@
         </div>
     </div>
 
-    <main id="game-container" class="flex-grow pt-24 pb-12 px-4 transition-all duration-500 opacity-0 flex flex-col">
+    <main id="game-container" class="flex-grow pt-24 pb-32 px-4 transition-all duration-500 opacity-0 flex flex-col">
         
         <!-- MISSION MAP -->
         <section id="map-section" class="max-w-md mx-auto relative h-[70vh] w-full flex flex-col items-center justify-around">
@@ -217,6 +232,9 @@
                     <div id="spelling-progress" class="h-full bg-gradient-to-r from-pink-400 to-indigo-500 transition-all duration-700 ease-out" style="width: 0%"></div>
                 </div>
                 <p class="mt-2 text-xs font-bold text-slate-400 uppercase tracking-widest">Progress to Mission 3</p>
+
+                <!-- Anchor para mover el robot aquí -->
+                <div id="robot-anchor-spelling"></div>
             </div>
         </section>
 
@@ -233,7 +251,7 @@
 
     </main>
 
-    <footer class="w-full py-6 text-center text-indigo-400 font-medium text-sm opacity-60">
+    <footer id="main-footer" class="w-full py-6 text-center text-indigo-400 font-medium text-sm opacity-60">
         By Ing. Milko Gonzales C
     </footer>
 
@@ -339,9 +357,21 @@
             const target = document.getElementById(`${id}-section`);
             if(target) target.classList.remove('hidden');
             state.currentSection = id;
-            if(id === 'learn') renderLearn();
-            if(id === 'spelling') { state.spellingIdx = 0; renderSpelling(); }
-            if(id === 'quiz') { state.quizIdx = 0; state.quizCorrect = 0; renderQuiz(); }
+            
+            const robot = document.getElementById('mission-toast');
+            if(id === 'spelling') {
+                document.getElementById('robot-anchor-spelling').appendChild(robot);
+                robot.classList.remove('robot-default-pos');
+                robot.classList.add('robot-spelling-pos');
+                state.spellingIdx = 0; 
+                renderSpelling(); 
+            } else {
+                document.body.appendChild(robot);
+                robot.classList.remove('robot-spelling-pos');
+                robot.classList.add('robot-default-pos');
+                if(id === 'learn') renderLearn();
+                if(id === 'quiz') { state.quizIdx = 0; state.quizCorrect = 0; renderQuiz(); }
+            }
         }
 
         function showSection(id) { startMission(id); }
@@ -409,8 +439,7 @@
             document.getElementById('spelling-progress').style.width = `${progress}%`;
 
             if (state.spellingIdx >= originalVocabulary.length) {
-                unlockBadge(1);
-                
+                // Las insignias ya no son visibles, pero el estado interno se mantiene
                 if(!state.unlockedLevels.includes('quiz')) {
                     state.unlockedLevels.push('quiz');
                     const node = document.getElementById('node-quiz');
@@ -508,7 +537,6 @@
             const card = document.getElementById('quiz-card');
             
             if(state.finalScore >= 70) {
-                unlockBadge(2); unlockBadge(3);
                 card.innerHTML = `
                     <h2 class="text-5xl font-bold-game text-yellow-500 mb-6">MISSION COMPLETE!</h2>
                     <div class="text-9xl mb-8">🏆</div>
@@ -623,12 +651,8 @@
 
         function updateStars(n) {
             state.stars += n;
-            document.getElementById('stars-count').innerText = state.stars;
-        }
-
-        function unlockBadge(id) {
-            const el = document.getElementById(`badge-${id}`);
-            if(el) el.classList.remove('opacity-30', 'grayscale');
+            const counter = document.getElementById('stars-count');
+            if(counter) counter.innerText = state.stars;
         }
 
         function createSparkles(el) {
